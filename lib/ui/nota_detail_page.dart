@@ -22,6 +22,22 @@ class _NotaDetailPageState extends State<NotaDetailPage> {
   bool _printing = false;
   bool _adaptivePreview = true;
 
+  @override
+  void initState() {
+    super.initState();
+    bt.addListener(_onBluetoothChange);
+  }
+
+  void _onBluetoothChange() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    bt.removeListener(_onBluetoothChange);
+    super.dispose();
+  }
+
   Future<void> _choosePrinter() async {
     await bt.refreshDevices();
     if (!mounted) return;
@@ -94,6 +110,35 @@ class _NotaDetailPageState extends State<NotaDetailPage> {
       appBar: AppBar(
         title: const Text('Pratinjau Nota A6'),
         actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    bt.connectedDevice != null
+                        ? Icons.bluetooth_connected
+                        : Icons.bluetooth_disabled,
+                    color:
+                        bt.connectedDevice != null
+                            ? Colors.green
+                            : Colors.redAccent,
+                  ),
+                  const SizedBox(width: 6),
+                  SizedBox(
+                    width: 120,
+                    child: Text(
+                      bt.connectedDevice?.name ?? 'Belum terhubung',
+                      style: Theme.of(context).textTheme.labelMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           IconButton(
             onPressed: _choosePrinter,
             icon: const Icon(Icons.bluetooth_searching),

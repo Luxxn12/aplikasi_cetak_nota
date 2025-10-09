@@ -8,6 +8,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'models/nota.dart';
 import 'services/hive_service.dart';
 import 'ui/login_page.dart';
+import 'ui/splash_page.dart';
 import 'ui/nota_form_page.dart';
 import 'ui/recap_page.dart';
 import 'ui/nota_detail_page.dart';
@@ -46,8 +47,9 @@ class NotaApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Aplikasi Cetak Nota',
       theme: ThemeData(colorSchemeSeed: Colors.blue, useMaterial3: true),
-      initialRoute: '/login',
+      initialRoute: SplashPage.routeName,
       routes: {
+        SplashPage.routeName: (_) => const SplashPage(),
         '/login': (_) => const LoginPage(),
         '/home': (_) => const HomePage(),
         '/input': (_) => const NotaFormPage(),
