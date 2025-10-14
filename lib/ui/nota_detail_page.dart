@@ -78,12 +78,17 @@ class _NotaDetailPageState extends State<NotaDetailPage> {
       _adaptivePreview = false;
     });
     try {
-      await WidgetsBinding.instance.endOfFrame;
+      bt.setAutoRotate(true); // biarkan service yang putar otomatis
+      bt.setPrintSize(widthMm: 90, heightMm: 140); // roll 90mm, feed 140mm
+      bt.setDotsPerMillimeter(8.0); // 203 dpi -> 8 dots/mm
+      bt.setOuterMargin(0.5); // 0–0.5mm agar aman dari hardware margin
+
       final Uint8List png = await PrintService.captureToPng(
         _key,
         pixelRatio: 3,
-        rotateClockwise: true,
+        rotateClockwise: false, // JANGAN putar di sini
       );
+      
       await bt.printImageBytes(png);
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -150,10 +155,20 @@ class _NotaDetailPageState extends State<NotaDetailPage> {
           padding: const EdgeInsets.all(12),
           child: RepaintBoundary(
             key: _key,
-            child: NotaA6Widget(
-              nota: widget.nota,
-              adaptive: _adaptivePreview,
-              logoImage: const AssetImage('assets/images/logo.png'),
+            child: Builder(
+              builder: (context) {
+                final content = NotaA6Widget(
+                  nota: widget.nota,
+                  adaptive: _adaptivePreview,
+                  logoImage: const AssetImage('assets/images/logo.png'),
+                  // Samakan ukuran teks preview dan cetak
+                  textScale: 1.0,
+                );
+                // Putar 90° hanya untuk pratinjau (saat _adaptivePreview = true)
+                return _adaptivePreview
+                    ? RotatedBox(quarterTurns: 1, child: content)
+                    : content;
+              },
             ),
           ),
         ),

@@ -22,9 +22,9 @@ class BluetoothService extends ChangeNotifier {
   BluetoothDevice? connectedDevice;
   bool isScanning = false;
 
-  double _dotsPerMillimeter = 203;
-  double _targetWidthMm = 140.0;
-  double _targetHeightMm = 90.0;
+  double _dotsPerMillimeter = 8.0; // 203 dpi default
+  double _targetWidthMm = 90.0;
+  double _targetHeightMm = 140.0;
   bool _autoRotate = false;
 
   double _binarizationThreshold = 170.0;
@@ -89,10 +89,7 @@ class BluetoothService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setPrintSize({
-    required double widthMm,
-    required double heightMm,
-  }) {
+  void setPrintSize({required double widthMm, required double heightMm}) {
     if (widthMm <= 0) return;
     _targetWidthMm = widthMm;
     _targetHeightMm = heightMm > 0 ? heightMm : 0;
@@ -172,27 +169,25 @@ class BluetoothService extends ChangeNotifier {
     final config = _buildLabelConfig(printable);
     final configWidthMm = (config['width'] as int).toDouble();
     final configHeightMm = (config['height'] as int).toDouble();
-    final labelWidthDots =
-        (configWidthMm * _dotsPerMillimeter).round();
-    final labelHeightDots =
-        (configHeightMm * _dotsPerMillimeter).round();
-    final widthScale =
-        labelWidthDots / printable.widthPx;
-    final heightScale =
-        labelHeightDots / printable.heightPx;
+    final labelWidthDots = (configWidthMm * _dotsPerMillimeter).round();
+    final labelHeightDots = (configHeightMm * _dotsPerMillimeter).round();
+    final widthScale = labelWidthDots / printable.widthPx;
+    final heightScale = labelHeightDots / printable.heightPx;
     final scale = math.min(1.0, math.min(widthScale, heightScale));
-    final displayWidth =
-        (printable.widthPx * scale).round().clamp(1, labelWidthDots);
-    final displayHeight =
-        (printable.heightPx * scale).round().clamp(1, labelHeightDots);
+    final displayWidth = (printable.widthPx * scale).round().clamp(
+      1,
+      labelWidthDots,
+    );
+    final displayHeight = (printable.heightPx * scale).round().clamp(
+      1,
+      labelHeightDots,
+    );
     final maxX = math.max(0, labelWidthDots - displayWidth);
     final maxY = math.max(0, labelHeightDots - displayHeight);
     final baseX = (labelWidthDots - displayWidth) ~/ 2;
     final baseY = (labelHeightDots - displayHeight) ~/ 2;
-    final offsetXDots =
-        (_offsetXMm * _dotsPerMillimeter).round();
-    final offsetYDots =
-        (_offsetYMm * _dotsPerMillimeter).round();
+    final offsetXDots = (_offsetXMm * _dotsPerMillimeter).round();
+    final offsetYDots = (_offsetYMm * _dotsPerMillimeter).round();
     final startX = math.min(math.max(baseX + offsetXDots, 0), maxX);
     final startY = math.min(math.max(baseY + offsetYDots, 0), maxY);
 
@@ -239,27 +234,32 @@ class BluetoothService extends ChangeNotifier {
       working = rotated;
     }
 
-    final targetWidthMm = _targetWidthMm > 0
-        ? _targetWidthMm
-        : working.width / _dotsPerMillimeter;
+    final targetWidthMm =
+        _targetWidthMm > 0
+            ? _targetWidthMm
+            : working.width / _dotsPerMillimeter;
     final contentWidthMm = math.max(
       1.0,
       targetWidthMm - (_outerMarginMm * 2) - (_hardwareMarginMm * 2),
     );
-    final maxWidthDots =
-        (contentWidthMm * _dotsPerMillimeter).round().clamp(1, 9999);
+    final maxWidthDots = (contentWidthMm * _dotsPerMillimeter).round().clamp(
+      1,
+      9999,
+    );
 
     double scale;
     if (hasHeightTarget) {
-      final targetHeightMm = _targetHeightMm > 0
-          ? _targetHeightMm
-          : working.height / _dotsPerMillimeter;
+      final targetHeightMm =
+          _targetHeightMm > 0
+              ? _targetHeightMm
+              : working.height / _dotsPerMillimeter;
       final contentHeightMm = math.max(
         1.0,
         targetHeightMm - (_outerMarginMm * 2) - (_hardwareMarginMm * 2),
       );
-      final maxHeightDots =
-          (contentHeightMm * _dotsPerMillimeter).round().clamp(1, 9999);
+      final maxHeightDots = (contentHeightMm * _dotsPerMillimeter)
+          .round()
+          .clamp(1, 9999);
       scale = math.min(
         maxWidthDots / working.width,
         maxHeightDots / working.height,
@@ -289,8 +289,9 @@ class BluetoothService extends ChangeNotifier {
     final monochrome = await _ditherToMonochrome(padded);
     final normalized = await _enforceWidthMultipleOf8(monochrome);
 
-    final byteData =
-        await normalized.toByteData(format: ui.ImageByteFormat.png);
+    final byteData = await normalized.toByteData(
+      format: ui.ImageByteFormat.png,
+    );
     final bytes = byteData!.buffer.asUint8List();
     final width = normalized.width;
     final height = normalized.height;
@@ -319,8 +320,16 @@ class BluetoothService extends ChangeNotifier {
   }
 
   Map<String, dynamic> _buildLabelConfig(_PrintableImage image) {
-    int widthMm = image.widthMm.ceil();
-    int heightMm = image.heightMm.ceil();
+    int widthMm;
+    int heightMm;
+    if (_targetHeightMm > 0) {
+      widthMm = _targetWidthMm.round();
+      heightMm = _targetHeightMm.round();
+    } else {
+      widthMm = _targetWidthMm.round();
+      final aspect = image.heightPx / image.widthPx;
+      heightMm = math.max(1, (widthMm * aspect).round());
+    }
     if (widthMm < 1) widthMm = 1;
     if (widthMm > 999) widthMm = 999;
     if (heightMm < 1) heightMm = 1;
@@ -330,7 +339,7 @@ class BluetoothService extends ChangeNotifier {
     return <String, dynamic>{
       'width': widthMm,
       'height': heightMm,
-      'gap': 3,
+      'gap': 0,
       'offsetX': offsetXDots,
       'offsetY': offsetYDots,
       'density': _tscDensityIndex,
@@ -340,8 +349,7 @@ class BluetoothService extends ChangeNotifier {
   }
 
   Future<ui.Image> _ditherToMonochrome(ui.Image image) async {
-    final byteData =
-        await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
     final data = byteData!.buffer.asUint8List();
     final width = image.width;
     final height = image.height;
@@ -394,8 +402,7 @@ class BluetoothService extends ChangeNotifier {
       }
     }
 
-    final monochrome =
-        await _imageFromPixels(data, image.width, image.height);
+    final monochrome = await _imageFromPixels(data, image.width, image.height);
     return monochrome;
   }
 
@@ -407,12 +414,7 @@ class BluetoothService extends ChangeNotifier {
     final canvas = ui.Canvas(recorder);
     final bgPaint = ui.Paint()..color = const ui.Color(0xFFFFFFFF);
     canvas.drawRect(
-      ui.Rect.fromLTWH(
-        0,
-        0,
-        newWidth.toDouble(),
-        image.height.toDouble(),
-      ),
+      ui.Rect.fromLTWH(0, 0, newWidth.toDouble(), image.height.toDouble()),
       bgPaint,
     );
     canvas.drawImage(image, ui.Offset.zero, ui.Paint());
@@ -445,11 +447,7 @@ class BluetoothService extends ChangeNotifier {
     return padded;
   }
 
-  Future<ui.Image> _imageFromPixels(
-    Uint8List rgba,
-    int width,
-    int height,
-  ) {
+  Future<ui.Image> _imageFromPixels(Uint8List rgba, int width, int height) {
     final completer = Completer<ui.Image>();
     ui.decodeImageFromPixels(
       rgba,
@@ -474,16 +472,16 @@ class BluetoothService extends ChangeNotifier {
   }
 
   void _applyBy482btDefaults() {
-    _dotsPerMillimeter = 300 / 25.4;
-    _targetWidthMm = 140;
-    _targetHeightMm = 90;
-    _autoRotate = false;
+    _dotsPerMillimeter = 8.0; // 203 dpi
+    _targetWidthMm = 90; // lebar head
+    _targetHeightMm = 140; // panjang feed
+    _autoRotate = true; // biar service yang putar bila perlu
+    _outerMarginMm = 0.5; // tipis agar aman dr hardware margin
     _binarizationThreshold = 170;
     _tscDensityIndex = 9;
     _tscSpeedIndex = 3;
     _offsetXMm = 0;
     _offsetYMm = 0;
-    _outerMarginMm = 1.5;
     _autoTear = false;
   }
 }

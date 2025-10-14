@@ -12,12 +12,14 @@ class NotaA6Widget extends StatelessWidget {
   final double mm;
   final bool adaptive;
   final ImageProvider<Object>? logoImage;
+  final double textScale;
   const NotaA6Widget({
     super.key,
     required this.nota,
     this.mm = 8,
     this.adaptive = true,
     this.logoImage,
+    this.textScale = 1.0,
   });
 
   @override
@@ -87,17 +89,22 @@ class NotaA6Widget extends StatelessWidget {
       );
     }
 
-    final original = SizedBox(
-      width: width,
-      height: height,
-      child: buildContent(),
+    final media = MediaQuery.of(context);
+    final original = MediaQuery(
+      data: media.copyWith(
+        textScaler: TextScaler.linear(textScale),
+      ),
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: buildContent(),
+      ),
     );
 
     if (!adaptive) return original;
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final media = MediaQuery.of(context);
         final availableWidth =
             constraints.hasBoundedWidth
                 ? constraints.maxWidth
