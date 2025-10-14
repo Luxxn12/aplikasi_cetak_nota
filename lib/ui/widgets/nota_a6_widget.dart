@@ -22,9 +22,9 @@ class NotaA6Widget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // A6 landscape: 148.5mm x 105mm
-    final width = 148.5 * mm;
-    final height = 105 * mm;
+    // Nota portrait ±90mm x 140mm; akan diputar 90° saat cetak supaya menjadi 140mm x 90mm
+    final width = 140 * mm;
+    final height = 90 * mm;
     final df = DateFormat('dd MMM yyyy');
     final cf = NumberFormat.currency(
       locale: 'id_ID',
