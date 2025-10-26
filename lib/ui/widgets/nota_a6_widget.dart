@@ -25,7 +25,7 @@ class NotaA6Widget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Nota portrait ±90mm x 140mm; akan diputar 90° saat cetak supaya menjadi 140mm x 90mm
-    final width = 140 * mm;
+    final width = 115 * mm;
     final height = 90 * mm;
     final df = DateFormat('dd MMM yyyy');
     final cf = NumberFormat.currency(
@@ -33,57 +33,67 @@ class NotaA6Widget extends StatelessWidget {
       symbol: 'Rp ',
       decimalDigits: 0,
     );
+    const thermalTextStyle = TextStyle(
+      fontFamily: 'Roboto',
+      fontWeight: FontWeight.w600,
+      color: Colors.black,
+      height: 1.15,
+      letterSpacing: 0.1,
+    );
 
     Widget buildContent() {
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: Colors.black87, width: 1),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _Header(df: df, nota: nota, logoImage: logoImage),
-              const SizedBox(height: 8),
-              Table(
-                border: TableBorder.all(color: Colors.black87, width: 1),
-                columnWidths: const {
-                  0: FixedColumnWidth(48),
-                  1: FlexColumnWidth(4),
-                  2: FlexColumnWidth(2),
-                  3: FlexColumnWidth(2),
-                  4: FlexColumnWidth(2),
-                },
-                children: [
-                  const TableRow(
-                    children: [
-                      _Cell('NO', bold: true),
-                      _Cell('PENGGANTI KOMPONEN', bold: true),
-                      _Cell('HARGA BARANG', bold: true),
-                      _Cell('SERVICE', bold: true),
-                      _Cell('TOTAL PRICE', bold: true),
-                    ],
-                  ),
-                  ...nota.items.asMap().entries.map((e) {
-                    final i = e.key + 1;
-                    final it = e.value;
-                    return TableRow(
+      return DefaultTextStyle.merge(
+        style: thermalTextStyle,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: Colors.black87, width: 1),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _Header(df: df, nota: nota, logoImage: logoImage),
+                const SizedBox(height: 8),
+                Table(
+                  border: TableBorder.all(color: Colors.black87, width: 1),
+                  columnWidths: const {
+                    0: FixedColumnWidth(48),
+                    1: FlexColumnWidth(4),
+                    2: FlexColumnWidth(2),
+                    3: FlexColumnWidth(2),
+                    4: FlexColumnWidth(2),
+                  },
+                  children: [
+                    const TableRow(
                       children: [
-                        _Cell(i.toString()),
-                        _Cell(it.description),
-                        _Cell(cf.format(it.barang), align: TextAlign.right),
-                        _Cell(cf.format(it.service), align: TextAlign.right),
-                        _Cell(cf.format(it.totalPrice), align: TextAlign.right),
+                        _Cell('NO', bold: true),
+                        _Cell('PENGGANTI KOMPONEN', bold: true),
+                        _Cell('HARGA BARANG', bold: true),
+                        _Cell('SERVICE', bold: true),
+                        _Cell('TOTAL PRICE', bold: true),
                       ],
-                    );
-                  }),
-                ],
-              ),
-              const Spacer(),
-              _Footer(cf: cf, nota: nota),
-            ],
+                    ),
+                    ...nota.items.asMap().entries.map((e) {
+                      final i = e.key + 1;
+                      final it = e.value;
+                      return TableRow(
+                        children: [
+                          _Cell(i.toString()),
+                          _Cell(it.description),
+                          _Cell(cf.format(it.barang), align: TextAlign.right),
+                          _Cell(cf.format(it.service), align: TextAlign.right),
+                          _Cell(cf.format(it.totalPrice), align: TextAlign.right),
+                        ],
+                      );
+                    }),
+                  ],
+                ),
+                const Spacer(),
+                _Footer(cf: cf, nota: nota),
+              ],
+            ),
           ),
         ),
       );
@@ -144,7 +154,13 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const titleColor = Color(0xFF0B4DAA);
-    final infoStyle = Theme.of(context).textTheme.bodySmall;
+    final baseStyle = DefaultTextStyle.of(context).style;
+    final infoStyle = baseStyle.merge(
+      Theme.of(context).textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+    );
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
