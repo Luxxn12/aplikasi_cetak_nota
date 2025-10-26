@@ -5,8 +5,10 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+    <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
     <application
-        android:label="aplikasi_cetak_nota"
+        android:label="Aplikasi Cetak Nota"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

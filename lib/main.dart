@@ -5,8 +5,9 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-import 'models/nota.dart';
 import 'services/hive_service.dart';
+import 'services/auth_service.dart';
+import 'models/nota.dart';
 import 'ui/login_page.dart';
 import 'ui/splash_page.dart';
 import 'ui/nota_form_page.dart';
@@ -34,6 +35,7 @@ Future<void> main() async {
   Hive.registerAdapter(NotaAdapter());
   Hive.registerAdapter(NotaItemAdapter());
   await HiveService.instance.init();
+  await AuthService.instance.init();
 
   runApp(const NotaApp());
 }

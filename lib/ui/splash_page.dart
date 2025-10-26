@@ -1,6 +1,5 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -12,21 +11,48 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage> {
-  Timer? _timer;
-
   @override
   void initState() {
     super.initState();
-    _timer = Timer(const Duration(seconds: 2), () {
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/login');
-    });
+    _bootstrap();
   }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
+  Future<void> _bootstrap() async {
+    await Future.delayed(const Duration(seconds: 2));
+    final auth = AuthService.instance;
+    final loggedIn = await auth.isLoggedIn();
+    if (!mounted) return;
+
+    if (!loggedIn) {
+      Navigator.pushReplacementNamed(context, '/login');
+      return;
+    }
+
+    final biometricsEnabled = await auth.isBiometricEnabled();
+    if (!mounted) return;
+
+    if (biometricsEnabled) {
+      final canUseBiometric = await auth.isBiometricAvailable();
+      if (!canUseBiometric) {
+        await auth.setBiometricEnabled(false);
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, '/home');
+        return;
+      }
+
+      final success = await auth.authenticate(reason: 'Gunakan biometrik untuk membuka aplikasi');
+      if (!mounted) return;
+
+      if (success) {
+        Navigator.pushReplacementNamed(context, '/home');
+        return;
+      }
+
+      Navigator.pushReplacementNamed(context, '/login');
+      return;
+    }
+
+    Navigator.pushReplacementNamed(context, '/home');
   }
 
   @override
@@ -52,11 +78,11 @@ class _SplashPageState extends State<SplashPage> {
             children: [
               CircleAvatar(
                 radius: 44,
-                backgroundColor: color.primary,
-                child: const Icon(
-                  Icons.receipt_long,
-                  color: Colors.white,
-                  size: 44,
+                backgroundColor: Colors.transparent,
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  width: 76,
+                  height: 76,
                 ),
               ),
               const SizedBox(height: 24),

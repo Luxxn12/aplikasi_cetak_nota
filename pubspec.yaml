@@ -20,6 +20,8 @@ dependencies:
   uuid: ^4.4.2
   permission_handler: ^11.3.1
   bluetooth_print: ^4.3.0
+  local_auth: ^2.3.0
+  shared_preferences: ^2.2.3
 
 dev_dependencies:
   flutter_test:

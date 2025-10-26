@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:local_auth/local_auth.dart';
+
+import '../services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,16 +16,70 @@ class _LoginPageState extends State<LoginPage> {
   final _pass = TextEditingController();
   bool _loading = false;
   bool _obscure = true;
+  bool _biometricEnabled = false;
+  bool _authenticating = false;
+  bool _autoPrompted = false;
+  List<BiometricType> _biometricTypes = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBiometricAvailability();
+  }
+
+  Future<void> _loadBiometricAvailability() async {
+    final auth = AuthService.instance;
+    final enabled = await auth.isBiometricEnabled();
+    final loggedIn = await auth.isLoggedIn();
+    final available = await auth.isBiometricAvailable();
+    var types = const <BiometricType>[];
+    if (available) {
+      types = await auth.getAvailableBiometrics();
+    }
+    final shouldEnable = enabled && loggedIn && available;
+    if (!mounted) return;
+    setState(() {
+      _biometricEnabled = shouldEnable;
+      _biometricTypes = types;
+    });
+    if (shouldEnable && !_autoPrompted) {
+      _autoPrompted = true;
+      await Future.delayed(const Duration(milliseconds: 220));
+      if (!mounted) return;
+      await _authenticateWithBiometric();
+    }
+  }
+
+  Future<void> _authenticateWithBiometric() async {
+    if (_authenticating) return;
+    setState(() => _authenticating = true);
+    final success = await AuthService.instance.authenticate(
+      reason: 'Gunakan biometrik untuk login',
+    );
+    if (!mounted) return;
+    setState(() => _authenticating = false);
+    if (success) {
+      Navigator.pushReplacementNamed(context, '/home');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Verifikasi biometrik gagal atau dibatalkan'),
+        ),
+      );
+    }
+  }
 
   void _login() async {
     if (!_form.currentState!.validate()) return;
     setState(() => _loading = true);
     await Future.delayed(const Duration(milliseconds: 400));
     setState(() => _loading = false);
-    if (_user.text == 'admin' && _pass.text == 'admin123') {
+    if (_user.text == 'cahyono' && _pass.text == 'cahyono123') {
+      await AuthService.instance.setLoggedIn(true);
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/home');
     } else {
+      await AuthService.instance.setLoggedIn(false);
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -118,11 +175,11 @@ class _LoginPageState extends State<LoginPage> {
                               children: [
                                 CircleAvatar(
                                   radius: isCompact ? 24 : 28,
-                                  backgroundColor: color.primary,
-                                  child: Icon(
-                                    Icons.receipt_long,
-                                    color: Colors.white,
-                                    size: isCompact ? 24 : 30,
+                                  backgroundColor: Colors.transparent,
+                                  child: Image.asset(
+                                    'assets/images/logo.png',
+                                    width: isCompact ? 44 : 52,
+                                    height: isCompact ? 44 : 52,
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -220,15 +277,26 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 10),
-                            Text(
-                              'admin / admin123',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.black45,
-                                fontSize: isCompact ? 12 : 13,
+                            if (_biometricEnabled) ...[
+                              const SizedBox(height: 12),
+                              OutlinedButton.icon(
+                                onPressed: _authenticating ? null : _authenticateWithBiometric,
+                                icon: _authenticating
+                                    ? const SizedBox(
+                                        height: 18,
+                                        width: 18,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : Icon(
+                                        _biometricTypes.contains(BiometricType.face) ? Icons.tag_faces : Icons.fingerprint,
+                                      ),
+                                label: Text(
+                                  _biometricTypes.contains(BiometricType.face)
+                                      ? 'Login dengan Face ID'
+                                      : 'Login dengan biometrik',
+                                ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
                       ),

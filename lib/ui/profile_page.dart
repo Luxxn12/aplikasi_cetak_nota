@@ -1,9 +1,85 @@
 import 'package:flutter/material.dart';
 
-class ProfilePage extends StatelessWidget {
+import '../services/auth_service.dart';
+
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
-  Future<void> _logout(BuildContext context) async {
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  bool _loadingBiometric = true;
+  bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
+  bool _processingToggle = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBiometricStatus();
+  }
+
+  Future<void> _loadBiometricStatus() async {
+    final auth = AuthService.instance;
+    final available = await auth.isBiometricAvailable();
+    final enabled = await auth.isBiometricEnabled();
+
+    if (enabled && !available) {
+      await auth.setBiometricEnabled(false);
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _biometricAvailable = available;
+      _biometricEnabled = enabled && available;
+      _loadingBiometric = false;
+    });
+  }
+
+  Future<void> _toggleBiometric(bool value) async {
+    if (_processingToggle) return;
+    setState(() => _processingToggle = true);
+    final auth = AuthService.instance;
+    var enabled = _biometricEnabled;
+
+    if (value) {
+      final success = await auth.authenticate(reason: 'Konfirmasi identitas Anda');
+      if (success) {
+        await auth.setBiometricEnabled(true);
+        enabled = true;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Login biometrik diaktifkan')),
+          );
+        }
+      } else {
+        enabled = false;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Gagal mengaktifkan login biometrik')),
+          );
+        }
+      }
+    } else {
+      await auth.setBiometricEnabled(false);
+      enabled = false;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Login biometrik dinonaktifkan')),
+        );
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _biometricEnabled = enabled;
+      _processingToggle = false;
+    });
+  }
+
+  Future<void> _logout() async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -16,6 +92,9 @@ class ProfilePage extends StatelessWidget {
       ),
     );
     if (ok == true && context.mounted) {
+      await AuthService.instance.setLoggedIn(false);
+      await AuthService.instance.setBiometricEnabled(false);
+      if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
     }
   }
@@ -23,6 +102,16 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
+    final canToggleBiometric = _biometricAvailable && !_loadingBiometric && !_processingToggle;
+    final biometricSubtitle = _loadingBiometric
+        ? 'Memeriksa ketersediaan biometrik...'
+        : !_biometricAvailable
+            ? 'Perangkat tidak mendukung biometrik'
+            : _processingToggle
+                ? 'Memproses...'
+                : _biometricEnabled
+                    ? 'Akan meminta wajah atau sidik jari saat membuka aplikasi'
+                    : 'Aktifkan untuk login menggunakan wajah atau sidik jari';
     return Scaffold(
       appBar: AppBar(title: const Text('Profil')),
       body: Container(
@@ -70,6 +159,15 @@ class ProfilePage extends StatelessWidget {
                     onTap: () {},
                   ),
                   const Divider(height: 1),
+                  SwitchListTile.adaptive(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    secondary: const Icon(Icons.fingerprint),
+                    title: const Text('Login biometrik'),
+                    subtitle: Text(biometricSubtitle),
+                    value: _biometricAvailable && _biometricEnabled,
+                    onChanged: canToggleBiometric ? (value) => _toggleBiometric(value) : null,
+                  ),
+                  const Divider(height: 1),
                   ListTile(
                     leading: const Icon(Icons.info_outline),
                     title: const Text('Tentang Aplikasi'),
@@ -80,7 +178,7 @@ class ProfilePage extends StatelessWidget {
                     leading: const Icon(Icons.logout, color: Colors.redAccent),
                     title: const Text('Logout'),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                    onTap: () => _logout(context),
+                    onTap: _logout,
                   ),
                 ],
               ),
