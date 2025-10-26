@@ -37,8 +37,9 @@ class NotaA6Widget extends StatelessWidget {
       fontFamily: 'Roboto',
       fontWeight: FontWeight.w600,
       color: Colors.black,
-      height: 1.15,
-      letterSpacing: 0.1,
+      fontSize: 18.0,
+      height: 1.2,
+      letterSpacing: 0.05,
     );
 
     Widget buildContent() {
@@ -154,12 +155,11 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const titleColor = Color(0xFF0B4DAA);
-    final baseStyle = DefaultTextStyle.of(context).style;
-    final infoStyle = baseStyle.merge(
-      Theme.of(context).textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
-          ),
+    final infoStyle = DefaultTextStyle.of(context).style.copyWith(
+      fontSize: 18,
+      fontWeight: FontWeight.w600,
+      color: Colors.black,
+      height: 1.2,
     );
 
     return Row(
@@ -179,7 +179,7 @@ class _Header extends StatelessWidget {
                     Text(
                       'SERVICE MICROWAVE',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 20,
                         fontWeight: FontWeight.w700,
                         color: titleColor,
                       ),
@@ -205,7 +205,7 @@ class _Header extends StatelessWidget {
             Text('Tgl  : ${df.format(nota.date)}', style: infoStyle),
             Text(
               'INVOICE : ${nota.invoiceNo}',
-              style: infoStyle?.copyWith(fontWeight: FontWeight.w700),
+              style: infoStyle.copyWith(fontWeight: FontWeight.w700),
             ),
           ],
         ),
@@ -384,7 +384,11 @@ class _Cell extends StatelessWidget {
       child: Text(
         text,
         textAlign: align,
-        style: TextStyle(fontWeight: bold ? FontWeight.bold : null),
+        style: TextStyle(
+          fontSize: 17.5,
+          fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
+          height: 1.22,
+        ),
       ),
     );
   }

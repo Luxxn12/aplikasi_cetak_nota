@@ -24,7 +24,7 @@ class BluetoothService extends ChangeNotifier {
 
   double _dotsPerMillimeter = 8.0; // 203 dpi default
   double _targetWidthMm = 90.0;
-  double _targetHeightMm = 140.0;
+  double _targetHeightMm = 115.0;
   bool _autoRotate = false;
 
   double _binarizationThreshold = 170.0;
@@ -33,6 +33,7 @@ class BluetoothService extends ChangeNotifier {
   double _offsetXMm = 0;
   double _offsetYMm = 0;
   double _outerMarginMm = 1.5;
+  double _trailingFeedReductionMm = 0;
   bool _autoTear = false;
 
   Future<void> ensurePermissions() async {
@@ -154,6 +155,13 @@ class BluetoothService extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setTrailingFeedReduction(double mm) {
+    final sanitized = math.max(0.0, mm);
+    if ((sanitized - _trailingFeedReductionMm).abs() < 0.01) return;
+    _trailingFeedReductionMm = sanitized;
+    notifyListeners();
+  }
+
   void applyBy482btPreset() {
     _applyBy482btDefaults();
     notifyListeners();
@@ -185,7 +193,7 @@ class BluetoothService extends ChangeNotifier {
     final maxX = math.max(0, labelWidthDots - displayWidth);
     final maxY = math.max(0, labelHeightDots - displayHeight);
     final baseX = (labelWidthDots - displayWidth) ~/ 2;
-    final baseY = (labelHeightDots - displayHeight) ~/ 2;
+    final baseY = 0; // Align to top; leftover height stays as trailing feed.
     final offsetXDots = (_offsetXMm * _dotsPerMillimeter).round();
     final offsetYDots = (_offsetYMm * _dotsPerMillimeter).round();
     final startX = math.min(math.max(baseX + offsetXDots, 0), maxX);
@@ -285,8 +293,9 @@ class BluetoothService extends ChangeNotifier {
     }
 
     final padded = await _padWithMargin(output);
+    final expanded = await _expandToTargetCanvas(padded);
 
-    final monochrome = await _ditherToMonochrome(padded);
+    final monochrome = await _ditherToMonochrome(expanded);
     final normalized = await _enforceWidthMultipleOf8(monochrome);
 
     final byteData = await normalized.toByteData(
@@ -304,6 +313,7 @@ class BluetoothService extends ChangeNotifier {
       monochrome,
       padded,
       output,
+      expanded,
       scaled,
       rotated,
       original,
@@ -424,6 +434,61 @@ class BluetoothService extends ChangeNotifier {
     return padded;
   }
 
+  Future<ui.Image> _expandToTargetCanvas(ui.Image image) async {
+    final hasHeightTarget = _targetHeightMm > 0;
+    final targetWidthDots =
+        (_targetWidthMm * _dotsPerMillimeter).round().clamp(1, 9999);
+    final targetHeightDots =
+        hasHeightTarget
+            ? (_targetHeightMm * _dotsPerMillimeter).round().clamp(1, 9999)
+            : image.height;
+
+    final reductionDots =
+        hasHeightTarget
+            ? (_trailingFeedReductionMm * _dotsPerMillimeter).round().clamp(
+              0,
+              9999,
+            )
+            : 0;
+    final effectiveTargetHeightDots = hasHeightTarget
+        ? math.max(1, targetHeightDots - reductionDots)
+        : targetHeightDots;
+
+    final desiredWidth = math.max(image.width, targetWidthDots);
+    final desiredHeight = math.max(image.height, effectiveTargetHeightDots);
+
+    if (desiredWidth == image.width && desiredHeight == image.height) {
+      return image;
+    }
+
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+    final bgPaint = ui.Paint()..color = const ui.Color(0xFFFFFFFF);
+    canvas.drawRect(
+      ui.Rect.fromLTWH(
+        0,
+        0,
+        desiredWidth.toDouble(),
+        desiredHeight.toDouble(),
+      ),
+      bgPaint,
+    );
+
+    final offsetX = ((desiredWidth - image.width) / 2).floorToDouble();
+    const offsetY = 0.0; // simpan konten di atas, sisa putih di bawah
+
+    canvas.drawImage(
+      image,
+      ui.Offset(offsetX, offsetY),
+      ui.Paint(),
+    );
+
+    final picture = recorder.endRecording();
+    final expanded = await picture.toImage(desiredWidth, desiredHeight);
+    picture.dispose();
+    return expanded;
+  }
+
   Future<ui.Image> _padWithMargin(ui.Image image) async {
     final padDots = (_outerMarginMm * _dotsPerMillimeter).round();
     if (padDots <= 0) return image;
@@ -474,9 +539,10 @@ class BluetoothService extends ChangeNotifier {
   void _applyBy482btDefaults() {
     _dotsPerMillimeter = 8.0; // 203 dpi
     _targetWidthMm = 90; // lebar head
-    _targetHeightMm = 140; // panjang feed
+    _targetHeightMm = 200; // panjang kertas roll
     _autoRotate = true; // biar service yang putar bila perlu
     _outerMarginMm = 0.5; // tipis agar aman dr hardware margin
+    _trailingFeedReductionMm = 0;
     _binarizationThreshold = 170;
     _tscDensityIndex = 9;
     _tscSpeedIndex = 3;

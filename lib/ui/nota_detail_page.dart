@@ -21,6 +21,7 @@ class _NotaDetailPageState extends State<NotaDetailPage> {
   final bt = BluetoothService.instance;
   bool _printing = false;
   bool _adaptivePreview = true;
+  bool _scanning = false;
 
   @override
   void initState() {
@@ -39,7 +40,32 @@ class _NotaDetailPageState extends State<NotaDetailPage> {
   }
 
   Future<void> _choosePrinter() async {
-    await bt.refreshDevices();
+    if (_scanning) return;
+    setState(() {
+      _scanning = true;
+    });
+    BuildContext? dialogContext;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return const _ScanningDialog();
+      },
+    );
+    try {
+      await bt.refreshDevices();
+    } finally {
+      if (mounted) {
+        if (dialogContext != null &&
+            Navigator.of(dialogContext!).canPop()) {
+          Navigator.of(dialogContext!).pop();
+        }
+        setState(() {
+          _scanning = false;
+        });
+      }
+    }
     if (!mounted) return;
     final chosen = await showModalBottomSheet<int>(
       context: context,
@@ -50,6 +76,7 @@ class _NotaDetailPageState extends State<NotaDetailPage> {
             itemBuilder: (c, i) {
               final d = bt.devices[i];
               return ListTile(
+                leading: const Icon(Icons.print, color: Colors.blueGrey),
                 title: Text(d.name ?? 'Unknown'),
                 subtitle: Text(d.address ?? ''),
                 onTap: () => Navigator.pop(ctx, i),
@@ -79,9 +106,13 @@ class _NotaDetailPageState extends State<NotaDetailPage> {
     });
     try {
       bt.setAutoRotate(true); // biarkan service yang putar otomatis
-      bt.setPrintSize(widthMm: 90, heightMm: 140); // roll 90mm, feed 140mm
+      bt.setPrintSize(widthMm: 90, heightMm: 200); // roll 90mm, feed 150mm
       bt.setDotsPerMillimeter(8.0); // 203 dpi -> 8 dots/mm
       bt.setOuterMargin(0.5); // 0–0.5mm agar aman dari hardware margin
+      bt.setTrailingFeedReduction(50); // kurangi area putih trailing 50mm
+      bt.setPrintDensity(12); // tingkatkan kepadatan agar teks lebih pekat
+      bt.setPrintSpeed(2); // sedikit perlambat supaya panas lebih merata
+      bt.setBinarizationThreshold(210); // dorong konversi hitam supaya font solid
 
       final Uint8List png = await PrintService.captureToPng(
         _key,
@@ -145,8 +176,15 @@ class _NotaDetailPageState extends State<NotaDetailPage> {
             ),
           ),
           IconButton(
-            onPressed: _choosePrinter,
-            icon: const Icon(Icons.bluetooth_searching),
+            onPressed: _scanning ? null : _choosePrinter,
+            icon:
+                _scanning
+                    ? const SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : const Icon(Icons.bluetooth_searching),
           ),
         ],
       ),
@@ -188,6 +226,35 @@ class _NotaDetailPageState extends State<NotaDetailPage> {
                     : const Icon(Icons.print),
             label: const Text('Cetak Bluetooth'),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ScanningDialog extends StatelessWidget {
+  const _ScanningDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            SizedBox(
+              width: 36,
+              height: 36,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Mencari perangkat...',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ],
         ),
       ),
     );
